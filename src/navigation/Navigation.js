@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 
 import LoginScreen from '../screens/Login'; 
+import RegisterScreen from '../screens/Register'; // Importa RegisterScreen
 import Home from '../screens/Home';
 import Add from '../screens/Add';
 
@@ -15,6 +16,11 @@ const Navigation = () => {
                     name="Login" 
                     component={LoginScreen} 
                     options={{ headerShown: false }} // Oculta el header si quieres
+                />
+                <Stack.Screen 
+                    name="Register" 
+                    component={RegisterScreen} 
+                    options={{ headerShown: false }} // Oculta el header para mantener consistencia
                 />
                 <Stack.Screen 
                     name="Home" 

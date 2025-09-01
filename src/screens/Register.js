@@ -9,11 +9,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  ImageBackground
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../firebaseConfig';
+import { auth, db } from '../config/firebase';
 import { StatusBar } from 'expo-status-bar';
 
 const RegisterScreen = ({ navigation }) => {
@@ -21,9 +23,19 @@ const RegisterScreen = ({ navigation }) => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    age: '',
+    specialty: ''
   });
   const [loading, setLoading] = useState(false);
+
+  const specialties = [
+    { label: 'Selecciona una especialidad', value: '' },
+    { label: 'Medicina General', value: 'medicina_general' },
+    { label: 'Cardiología', value: 'cardiologia' },
+    { label: 'Dermatología', value: 'dermatologia' },
+    { label: 'Neurología', value: 'neurologia' },
+    { label: 'Pediatría', value: 'pediatria' }
+  ];
 
   const updateFormData = (field, value) => {
     setFormData(prev => ({
@@ -47,9 +59,14 @@ const RegisterScreen = ({ navigation }) => {
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return false;
     }
-    
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+
+    if (!formData.age || formData.age < 18) {
+      Alert.alert('Error', 'Debes ser mayor de 18 años');
+      return false;
+    }
+
+    if (!formData.specialty) {
+      Alert.alert('Error', 'Selecciona una especialidad');
       return false;
     }
     
@@ -79,6 +96,8 @@ const RegisterScreen = ({ navigation }) => {
       await setDoc(doc(db, 'users', user.uid), {
         name: formData.name,
         email: formData.email,
+        age: parseInt(formData.age),
+        specialty: formData.specialty,
         createdAt: new Date().toISOString(),
         uid: user.uid
       });
@@ -118,34 +137,23 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <ImageBackground 
+      source={require("../../assets/Frame.png")}
+      style={styles.backgroundImage}
+      resizeMode="cover"
     >
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.topSection}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={goToLogin}>
-              <View style={styles.backButton}>
-                <Text style={styles.backText}>←</Text>
-              </View>
-            </TouchableOpacity>
-            <Text style={styles.headerText}>Create Account</Text>
-            <Text style={styles.dots}>⋯</Text>
-          </View>
-        </View>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <StatusBar style="light" />
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.card}>
+            <Text style={styles.title}>SIGN UP</Text>
+            <Text style={styles.subtitle}>FOR YOUR ACCOUNT</Text>
 
-        <View style={styles.formSection}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>+</Text>
-            </View>
-            <Text style={styles.avatarLabel}>Add Photo</Text>
-          </View>
-
-          <View style={styles.form}>
             <View style={styles.inputContainer}>
+              <Text style={styles.icon}>👤</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Nombre completo"
@@ -157,9 +165,10 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
+              <Text style={styles.icon}>✉️</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder="Correo electrónico"
                 placeholderTextColor="#999"
                 value={formData.email}
                 onChangeText={(value) => updateFormData('email', value)}
@@ -170,9 +179,9 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.lockIcon}>🔒</Text>
+              <Text style={styles.icon}>🔒</Text>
               <TextInput
-                style={styles.passwordInput}
+                style={styles.input}
                 placeholder="Contraseña"
                 placeholderTextColor="#999"
                 value={formData.password}
@@ -183,202 +192,161 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.lockIcon}>🔒</Text>
+              <Text style={styles.icon}>🎂</Text>
               <TextInput
-                style={styles.passwordInput}
-                placeholder="Confirmar contraseña"
+                style={styles.input}
+                placeholder="Edad"
                 placeholderTextColor="#999"
-                value={formData.confirmPassword}
-                onChangeText={(value) => updateFormData('confirmPassword', value)}
-                secureTextEntry
-                autoComplete="password-new"
+                value={formData.age}
+                onChangeText={(value) => updateFormData('age', value)}
+                keyboardType="numeric"
+                maxLength={2}
               />
             </View>
 
+            <View style={styles.pickerContainer}>
+              <Text style={styles.icon}>🩺</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={formData.specialty}
+                  style={styles.picker}
+                  onValueChange={(itemValue) => updateFormData('specialty', itemValue)}
+                  dropdownIconColor="#999"
+                >
+                  {specialties.map((specialty, index) => (
+                    <Picker.Item 
+                      key={index} 
+                      label={specialty.label} 
+                      value={specialty.value}
+                      color={specialty.value === '' ? '#999' : '#333'}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
             <TouchableOpacity 
-              style={[styles.registerButton, loading && styles.disabledButton]}
+              style={[styles.signUpButton, loading && styles.disabledButton]}
               onPress={handleRegister}
               disabled={loading}
             >
-              <Text style={styles.registerButtonText}>
-                {loading ? 'Creando cuenta...' : '• Register'}
+              <Text style={styles.signUpButtonText}>
+                {loading ? 'CREANDO CUENTA...' : 'SIGN UP'}
               </Text>
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>advanced registration</Text>
-            
-            <View style={styles.socialButtons}>
-              <View style={styles.socialButton} />
-              <View style={styles.socialButton} />
-              <View style={styles.socialButton} />
-            </View>
 
             <TouchableOpacity onPress={goToLogin} style={styles.loginLink}>
               <Text style={styles.loginText}>¿Ya tienes cuenta? Inicia sesión</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F8BBD9',
+    backgroundColor: 'transparent',
   },
   scrollContainer: {
     flexGrow: 1,
-  },
-  topSection: {
-    flex: 1,
-    backgroundColor: '#E91E63',
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    padding: 20,
-    minHeight: 250,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 50,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
   },
-  backText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  headerText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '300',
-  },
-  dots: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  formSection: {
-    flex: 2,
-    backgroundColor: 'white',
-    marginTop: -40,
-    marginHorizontal: 20,
-    borderRadius: 20,
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 30,
     padding: 30,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 10,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+    marginVertical: 20,
   },
-  avatarContainer: {
-    alignItems: 'center',
-    marginTop: -60,
-    marginBottom: 30,
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#8B5CF6',
+    marginBottom: 5,
   },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#f0f0f0',
-    borderWidth: 4,
-    borderColor: '#E91E63',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderStyle: 'dashed',
-  },
-  avatarText: {
-    fontSize: 40,
-    color: '#E91E63',
-    fontWeight: '300',
-  },
-  avatarLabel: {
-    color: '#999',
+  subtitle: {
     fontSize: 12,
-    marginTop: 10,
-  },
-  form: {
+    color: '#999',
     marginBottom: 30,
+    fontWeight: '300',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     height: 50,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F3E8FF',
     borderRadius: 25,
     paddingHorizontal: 20,
     marginBottom: 15,
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    height: 50,
+    backgroundColor: '#F3E8FF',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  icon: {
+    fontSize: 18,
+    marginRight: 15,
   },
   input: {
     flex: 1,
     fontSize: 16,
     color: '#333',
   },
-  lockIcon: {
-    marginRight: 10,
-    fontSize: 16,
-  },
-  passwordInput: {
+  pickerWrapper: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
   },
-  registerButton: {
-    backgroundColor: '#E91E63',
+  picker: {
+    flex: 1,
+    color: '#333',
+    fontSize: 16,
+  },
+  signUpButton: {
+    width: '100%',
     height: 50,
+    backgroundColor: '#8B5CF6',
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
+    marginBottom: 20,
   },
   disabledButton: {
     opacity: 0.7,
   },
-  registerButtonText: {
+  signUpButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  footer: {
-    alignItems: 'center',
-  },
-  footerText: {
-    color: '#999',
-    fontSize: 12,
-    marginBottom: 20,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: 15,
-    marginBottom: 20,
-  },
-  socialButton: {
-    width: 60,
-    height: 40,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-  },
   loginLink: {
-    marginTop: 20,
+    marginTop: 10,
   },
   loginText: {
-    color: '#E91E63',
-    fontSize: 16,
+    color: '#8B5CF6',
+    fontSize: 14,
     fontWeight: '500',
   },
 });
