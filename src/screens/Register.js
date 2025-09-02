@@ -78,8 +78,8 @@ const RegisterScreen = ({ navigation }) => {
 
     // Age validation
     const ageNum = parseInt(formData.age);
-    if (!formData.age || isNaN(ageNum) || ageNum < 18 || ageNum > 120) {
-      Alert.alert('Error', 'Debes ser mayor de 18 años y menor de 120');
+    if (!formData.age || isNaN(ageNum) || ageNum < 18 || ageNum > 80) {
+      Alert.alert('Error', 'Debes ser mayor de 18 años y menor de 80');
       return false;
     }
 
@@ -253,7 +253,7 @@ const RegisterScreen = ({ navigation }) => {
             <Text style={styles.subtitle}>FOR YOUR ACCOUNT</Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.icon}>👤</Text>
+              
               <TextInput
                 style={styles.input}
                 placeholder="Nombre completo"
@@ -267,7 +267,7 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.icon}>✉️</Text>
+            
               <TextInput
                 style={styles.input}
                 placeholder="Correo electrónico"
@@ -282,7 +282,7 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.icon}>🔒</Text>
+            
               <TextInput
                 style={styles.input}
                 placeholder="Contraseña (mín. 6 caracteres)"
@@ -296,7 +296,7 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.icon}>🔒</Text>
+             
               <TextInput
                 style={styles.input}
                 placeholder="Confirmar contraseña"
@@ -309,7 +309,7 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.icon}>🎂</Text>
+            
               <TextInput
                 style={styles.input}
                 placeholder="Edad (18-120)"
@@ -323,7 +323,7 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.pickerContainer}>
-              <Text style={styles.icon}>🏥</Text>
+              
               <View style={styles.pickerWrapper}>
                 <Picker
                   selectedValue={formData.specialty}

@@ -170,7 +170,7 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.subtitle}>TO CONTINUE</Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.icon}>✉️</Text>
+            
             <TextInput
               style={styles.input}
               placeholder="Ingresa tu correo electrónico"
@@ -185,7 +185,7 @@ const LoginScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.icon}>🔒</Text>
+           
             <TextInput
               style={styles.input}
               placeholder="Ingresa tu contraseña"
