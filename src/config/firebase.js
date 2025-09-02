@@ -3,54 +3,78 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from 'firebase/storage';
-import { API_KEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET, MESSAGING_SENDER_ID, APP_ID } from '@env';
 
-// Your web app's Firebase configuration
+// Firebase configuration with your actual values
 const firebaseConfig = {
-  apiKey: API_KEY,
-  authDomain: AUTH_DOMAIN,
-  projectId: PROJECT_ID,
-  storageBucket: STORAGE_BUCKET,
-  messagingSenderId: MESSAGING_SENDER_ID,
-  appId: APP_ID    
+  apiKey: "AIzaSyCBgdlf6YTXnNsJEJAO_Jush8u9OuGnk8s",
+  authDomain: "app-firebase-5f390.firebaseapp.com",
+  projectId: "app-firebase-5f390",
+  storageBucket: "app-firebase-5f390.firebasestorage.app",
+  messagingSenderId: "585622994781",
+  appId: "1:585622994781:web:92eed315b31f1eda5c32b4"
 };
 
-console.log("Valor de configuracion", firebaseConfig);
+console.log('🔥 Firebase Configuration:');
+console.log('Project ID:', firebaseConfig.projectId);
+console.log('Auth Domain:', firebaseConfig.authDomain);
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app, auth, db, storage;
 
-// Initialize Firebase Authentication and get a reference to the service
-const auth = getAuth(app);
+try {
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
+  console.log('✅ Firebase app initialized');
 
-// Initialize Cloud Firestore and get a reference to the service
-const db = getFirestore(app);
+  // Initialize Firebase Authentication
+  auth = getAuth(app);
+  console.log('✅ Firebase Auth initialized');
+  console.log('Auth app name:', auth.app.name);
+  console.log('Auth project ID:', auth.app.options.projectId);
 
-// Initialize Cloud Storage and get a reference to the service
-const storage = getStorage(app);
+  // Initialize Cloud Firestore
+  db = getFirestore(app);
+  console.log('✅ Firestore initialized');
+  console.log('DB project ID:', db.app.options.projectId);
 
-if (app) {
-  console.log('Firebase initialized successfully');
-} else {
-  console.log('Firebase initialization failed');
+  // Initialize Cloud Storage
+  storage = getStorage(app);
+  console.log('✅ Storage initialized');
+
+} catch (error) {
+  console.error('❌ Firebase initialization failed:', error);
+  console.error('Error code:', error.code);
+  console.error('Error message:', error.message);
 }
 
-if (auth) {
-  console.log('Firebase Auth initialized correctly');
-} else {
-  console.log('Firebase Auth initialization failed');
-}
+// Additional verification
+const verifyFirebaseSetup = () => {
+  console.log('🔍 Verifying Firebase setup...');
+  
+  if (!auth) {
+    console.error('❌ Auth is undefined - this will cause auth/configuration-not-found');
+    return false;
+  }
+  
+  if (!db) {
+    console.error('❌ Firestore is undefined');
+    return false;
+  }
+  
+  if (!auth.app) {
+    console.error('❌ Auth.app is undefined');
+    return false;
+  }
+  
+  if (!auth.app.options.projectId) {
+    console.error('❌ Project ID not found in auth config');
+    return false;
+  }
+  
+  console.log('✅ Firebase setup verification passed');
+  return true;
+};
 
-if (db) {
-  console.log('Firestore initialized correctly');
-} else {
-  console.log('Firestore initialization failed');
-}
+// Run verification
+verifyFirebaseSetup();
 
-if (storage) {
-  console.log('Storage initialized correctly');
-} else {
-  console.log('Storage initialization failed');
-}
-
-export { auth, db, storage };
+export { auth, db, storage, app };

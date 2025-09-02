@@ -10,11 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ImageBackground
+  ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { StatusBar } from 'expo-status-bar';
 
@@ -23,6 +24,7 @@ const RegisterScreen = ({ navigation }) => {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     age: '',
     specialty: ''
   });
@@ -30,11 +32,11 @@ const RegisterScreen = ({ navigation }) => {
 
   const specialties = [
     { label: 'Selecciona una especialidad', value: '' },
-    { label: 'Medicina General', value: 'medicina_general' },
-    { label: 'Cardiología', value: 'cardiologia' },
-    { label: 'Dermatología', value: 'dermatologia' },
-    { label: 'Neurología', value: 'neurologia' },
-    { label: 'Pediatría', value: 'pediatria' }
+    { label: 'Software', value: 'Software' },
+    { label: 'Diseño', value: 'Diseño' },
+    { label: 'Emca', value: 'Emca' },
+    { label: 'Arquitectura', value: 'Arquitectura' },
+    { label: 'Contaduría', value: 'Contaduría' }
   ];
 
   const updateFormData = (field, value) => {
@@ -45,26 +47,43 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'El nombre es requerido');
+    // Name validation
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      Alert.alert('Error', 'El nombre debe tener al menos 2 caracteres');
       return false;
     }
     
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
       Alert.alert('Error', 'El email es requerido');
       return false;
     }
     
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Por favor ingresa un email válido');
+      return false;
+    }
+    
+    // Password validation
     if (formData.password.length < 6) {
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return false;
     }
 
-    if (!formData.age || formData.age < 18) {
-      Alert.alert('Error', 'Debes ser mayor de 18 años');
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
       return false;
     }
 
+    // Age validation
+    const ageNum = parseInt(formData.age);
+    if (!formData.age || isNaN(ageNum) || ageNum < 18 || ageNum > 120) {
+      Alert.alert('Error', 'Debes ser mayor de 18 años y menor de 120');
+      return false;
+    }
+
+    // Specialty validation
     if (!formData.specialty) {
       Alert.alert('Error', 'Selecciona una especialidad');
       return false;
@@ -76,60 +95,138 @@ const RegisterScreen = ({ navigation }) => {
   const handleRegister = async () => {
     if (!validateForm()) return;
 
+    // Pre-flight checks
+    console.log('🚀 Starting registration...');
+    console.log('Auth object:', !!auth);
+    console.log('DB object:', !!db);
+    
+    if (!auth) {
+      Alert.alert('Error de Configuración', 'Firebase Authentication no está configurado correctamente');
+      return;
+    }
+
+    if (!db) {
+      Alert.alert('Error de Configuración', 'Firestore Database no está configurado correctamente');
+      return;
+    }
+
     setLoading(true);
+    
     try {
+      console.log('📧 Creating user with email:', formData.email);
+      
       // Create user with email and password
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
-        formData.email, 
+        formData.email.trim().toLowerCase(), 
         formData.password
       );
       
       const user = userCredential.user;
+      console.log('✅ User created successfully:', user.uid);
 
       // Update user profile with name
       await updateProfile(user, {
-        displayName: formData.name
+        displayName: formData.name.trim()
       });
+      console.log('✅ Profile updated');
 
       // Save additional user data to Firestore
-      await setDoc(doc(db, 'users', user.uid), {
-        name: formData.name,
-        email: formData.email,
+      const userData = {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
         age: parseInt(formData.age),
         specialty: formData.specialty,
-        createdAt: new Date().toISOString(),
-        uid: user.uid
-      });
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        uid: user.uid,
+        emailVerified: false,
+        profileComplete: true
+      };
+
+      await setDoc(doc(db, 'users', user.uid), userData);
+      console.log('✅ User data saved to Firestore');
+
+      // Send email verification (optional)
+      try {
+        await sendEmailVerification(user);
+        console.log('✅ Verification email sent');
+      } catch (verificationError) {
+        console.log('⚠️ Error sending verification email:', verificationError);
+      }
 
       Alert.alert(
-        'Éxito', 
-        'Cuenta creada exitosamente',
+        '¡Éxito!', 
+        'Cuenta creada exitosamente. ¡Ya puedes iniciar sesión!',
         [
           {
-            text: 'OK',
-            onPress: () => navigation.navigate('Login')
+            text: 'Ir a Login',
+            onPress: () => {
+              // Clear form
+              setFormData({
+                name: '',
+                email: '',
+                password: '',
+                confirmPassword: '',
+                age: '',
+                specialty: ''
+              });
+              navigation.navigate('Login');
+            }
           }
         ]
       );
     } catch (error) {
+      console.error('❌ Registration error:', error);
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error message:', error.message);
+      
       let errorMessage = 'Error al crear la cuenta';
+      let troubleshootingTip = '';
       
       switch (error.code) {
+        case 'auth/configuration-not-found':
+          errorMessage = 'Configuración de Firebase incompleta';
+          troubleshootingTip = 'Verifica que Authentication esté habilitado en Firebase Console:\n\n1. Ve a Firebase Console\n2. Selecciona tu proyecto\n3. Ve a Authentication > Sign-in method\n4. Habilita Email/Password';
+          break;
+        case 'auth/project-not-found':
+          errorMessage = 'Proyecto de Firebase no encontrado';
+          troubleshootingTip = 'Verifica que el Project ID sea correcto en la configuración';
+          break;
+        case 'auth/api-key-not-valid':
+          errorMessage = 'API Key de Firebase inválida';
+          troubleshootingTip = 'Verifica la API Key en Firebase Console > Project Settings';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'Authentication con Email/Password no está habilitado';
+          troubleshootingTip = 'Ve a Firebase Console > Authentication > Sign-in method y habilita Email/Password';
+          break;
         case 'auth/email-already-in-use':
           errorMessage = 'Este email ya está registrado';
+          troubleshootingTip = '¿Ya tienes una cuenta? Intenta iniciar sesión';
           break;
         case 'auth/invalid-email':
-          errorMessage = 'Email inválido';
+          errorMessage = 'El formato del email no es válido';
           break;
         case 'auth/weak-password':
-          errorMessage = 'La contraseña es muy débil';
+          errorMessage = 'La contraseña es muy débil. Usa al menos 6 caracteres';
           break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Error de conexión. Verifica tu internet';
+          break;
+        default:
+          errorMessage = `Error: ${error.message}`;
+          troubleshootingTip = 'Si el problema persiste, verifica la configuración de Firebase';
       }
       
-      Alert.alert('Error', errorMessage);
+      Alert.alert(
+        'Error de Registro', 
+        troubleshootingTip ? `${errorMessage}\n\n${troubleshootingTip}` : errorMessage,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const goToLogin = () => {
@@ -147,7 +244,10 @@ const RegisterScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <StatusBar style="light" />
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.card}>
             <Text style={styles.title}>SIGN UP</Text>
             <Text style={styles.subtitle}>FOR YOUR ACCOUNT</Text>
@@ -161,6 +261,8 @@ const RegisterScreen = ({ navigation }) => {
                 value={formData.name}
                 onChangeText={(value) => updateFormData('name', value)}
                 autoCapitalize="words"
+                autoComplete="name"
+                editable={!loading}
               />
             </View>
 
@@ -175,6 +277,7 @@ const RegisterScreen = ({ navigation }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+                editable={!loading}
               />
             </View>
 
@@ -182,12 +285,26 @@ const RegisterScreen = ({ navigation }) => {
               <Text style={styles.icon}>🔒</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Contraseña"
+                placeholder="Contraseña (mín. 6 caracteres)"
                 placeholderTextColor="#999"
                 value={formData.password}
                 onChangeText={(value) => updateFormData('password', value)}
                 secureTextEntry
                 autoComplete="password-new"
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.icon}>🔒</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Confirmar contraseña"
+                placeholderTextColor="#999"
+                value={formData.confirmPassword}
+                onChangeText={(value) => updateFormData('confirmPassword', value)}
+                secureTextEntry
+                editable={!loading}
               />
             </View>
 
@@ -195,23 +312,25 @@ const RegisterScreen = ({ navigation }) => {
               <Text style={styles.icon}>🎂</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Edad"
+                placeholder="Edad (18-120)"
                 placeholderTextColor="#999"
                 value={formData.age}
                 onChangeText={(value) => updateFormData('age', value)}
                 keyboardType="numeric"
-                maxLength={2}
+                maxLength={3}
+                editable={!loading}
               />
             </View>
 
             <View style={styles.pickerContainer}>
-              <Text style={styles.icon}>🩺</Text>
+              <Text style={styles.icon}>🏥</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
                   selectedValue={formData.specialty}
                   style={styles.picker}
                   onValueChange={(itemValue) => updateFormData('specialty', itemValue)}
                   dropdownIconColor="#999"
+                  enabled={!loading}
                 >
                   {specialties.map((specialty, index) => (
                     <Picker.Item 
@@ -230,13 +349,21 @@ const RegisterScreen = ({ navigation }) => {
               onPress={handleRegister}
               disabled={loading}
             >
-              <Text style={styles.signUpButtonText}>
-                {loading ? 'CREANDO CUENTA...' : 'SIGN UP'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.signUpButtonText}>SIGN UP</Text>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={goToLogin} style={styles.loginLink}>
-              <Text style={styles.loginText}>¿Ya tienes cuenta? Inicia sesión</Text>
+            <TouchableOpacity 
+              onPress={goToLogin} 
+              style={styles.loginLink}
+              disabled={loading}
+            >
+              <Text style={[styles.loginText, loading && styles.disabledText]}>
+                ¿Ya tienes cuenta? Inicia sesión
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -348,6 +475,9 @@ const styles = StyleSheet.create({
     color: '#8B5CF6',
     fontSize: 14,
     fontWeight: '500',
+  },
+  disabledText: {
+    opacity: 0.5,
   },
 });
 

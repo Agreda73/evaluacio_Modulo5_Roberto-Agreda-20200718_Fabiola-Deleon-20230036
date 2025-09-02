@@ -1,9 +1,9 @@
-// Importación de bibliotecas y componentes necesarios
+// screens/Home.js - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
-import { database } from '../config/firebase'; // Importa la configuración de la base de datos de Firebase
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'; // Importa funciones de Firestore para consultas en tiempo real
-import CardProductos from '../components/CardProductos'; // Importa el componente de tarjeta de producto
+import { db } from '../config/firebase'; // ✅ CORRECTED: Changed from 'database' to 'db'
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import CardProductos from '../components/CardProductos';
 
 // Definición del componente principal Home
 const Home = ({ navigation }) => {
@@ -12,26 +12,51 @@ const Home = ({ navigation }) => {
 
     // useEffect se ejecuta cuando el componente se monta
     useEffect(() => {
-        // Define una consulta a la colección 'productos' en Firestore, ordenada por el campo 'creado' en orden descendente
-        const q = query(collection(database, 'productos'), orderBy('creado', 'desc'));
+        console.log(' Home component mounted');
+        console.log(' DB object:', db);
         
-        // Escucha cambios en la consulta de Firestore en tiempo real
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const docs = [];
-            querySnapshot.forEach((doc) => {
-                // Empuja cada documento con su ID a la lista de docs
-                docs.push({ id: doc.id, ...doc.data() });
-            });
-            // Actualiza el estado de productos con los datos recibidos
-            setProductos(docs);
-        });
+        // Verify db exists before using it
+        if (!db) {
+            console.error('❌ Database object is not available');
+            return;
+        }
 
-        // Limpieza de la suscripción al desmontar el componente
-        return () => unsubscribe();
+        try {
+            // Define una consulta a la colección 'productos' en Firestore, ordenada por el campo 'creado' en orden descendente
+            const q = query(collection(db, 'productos'), orderBy('creado', 'desc')); // ✅ CORRECTED: Changed from 'database' to 'db'
+            
+            console.log(' Setting up Firestore listener for productos collection');
+            
+            // Escucha cambios en la consulta de Firestore en tiempo real
+            const unsubscribe = onSnapshot(q, 
+                (querySnapshot) => {
+                    const docs = [];
+                    querySnapshot.forEach((doc) => {
+                        // Empuja cada documento con su ID a la lista de docs
+                        docs.push({ id: doc.id, ...doc.data() });
+                    });
+                    // Actualiza el estado de productos con los datos recibidos
+                    setProductos(docs);
+                    console.log(`📊 Found ${docs.length} productos`);
+                },
+                (error) => {
+                    console.error('❌ Error in productos listener:', error);
+                }
+            );
+
+            // Limpieza de la suscripción al desmontar el componente
+            return () => {
+                console.log('🧹 Cleaning up productos listener');
+                unsubscribe();
+            };
+        } catch (error) {
+            console.error('❌ Error setting up productos listener:', error);
+        }
     }, []);
 
     // Función para navegar a la pantalla 'Add'
     const goToAdd = () => { 
+        console.log('➕ Navigating to Add screen');
         navigation.navigate('Add');
     }
 
@@ -73,7 +98,6 @@ const Home = ({ navigation }) => {
         </View>
     );
 };
-
 
 // Exporta el componente Home como predeterminado
 export default Home;

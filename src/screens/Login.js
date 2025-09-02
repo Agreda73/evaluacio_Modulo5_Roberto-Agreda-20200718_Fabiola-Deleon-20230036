@@ -1,5 +1,5 @@
 // screens/LoginScreen.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,45 +10,105 @@ import {
   Platform,
   ImageBackground,
   Alert,
+  ActivityIndicator,
 } from "react-native";
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const handleLogin = async () => {
+  // Check if user is already logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // User is signed in, fetch additional data
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            console.log('Usuario ya autenticado:', userData);
+            navigation.replace('Home'); // Use replace to prevent going back to login
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      }
+      setInitialLoading(false);
+    });
+
+    return unsubscribe; // Cleanup subscription
+  }, [navigation]);
+
+  const validateInputs = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
     if (!email.trim()) {
       Alert.alert('Error', 'El email es requerido');
-      return;
+      return false;
+    }
+
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Por favor ingresa un email válido');
+      return false;
     }
 
     if (!password.trim()) {
       Alert.alert('Error', 'La contraseña es requerida');
-      return;
+      return false;
     }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleLogin = async () => {
+    if (!validateInputs()) return;
 
     setLoading(true);
     
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       const user = userCredential.user;
       
-      console.log('Usuario logueado:', user.email);
+      // Fetch additional user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
       
-      // Navegar a la pantalla principal después del login exitoso
-      navigation.navigate('Home');
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log('Login exitoso:', {
+          uid: user.uid,
+          email: user.email,
+          ...userData
+        });
+        
+        // Navigation will be handled by the useEffect listener
+        Alert.alert(
+          'Éxito', 
+          `¡Bienvenido de vuelta, ${userData.name || user.email}!`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        console.log('No se encontraron datos adicionales del usuario');
+        Alert.alert('Advertencia', 'Datos de usuario incompletos');
+      }
       
     } catch (error) {
-      console.log('Error de login:', error.message);
+      console.error('Error de login:', error);
       
       let errorMessage = 'Error al iniciar sesión';
       
       switch (error.code) {
         case 'auth/user-not-found':
-          errorMessage = 'Usuario no encontrado';
+          errorMessage = 'No existe una cuenta con este email';
           break;
         case 'auth/wrong-password':
           errorMessage = 'Contraseña incorrecta';
@@ -57,7 +117,7 @@ const LoginScreen = ({ navigation }) => {
           errorMessage = 'Email inválido';
           break;
         case 'auth/user-disabled':
-          errorMessage = 'Usuario deshabilitado';
+          errorMessage = 'Esta cuenta ha sido deshabilitada';
           break;
         case 'auth/too-many-requests':
           errorMessage = 'Demasiados intentos fallidos. Intenta más tarde';
@@ -65,15 +125,35 @@ const LoginScreen = ({ navigation }) => {
         case 'auth/network-request-failed':
           errorMessage = 'Error de conexión. Verifica tu internet';
           break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Email o contraseña incorrectos';
+          break;
         default:
-          errorMessage = 'Error al iniciar sesión: ' + error.message;
+          errorMessage = `Error: ${error.message}`;
       }
       
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error de Autenticación', errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Recuperar Contraseña',
+      'Esta función será implementada próximamente',
+      [{ text: 'OK' }]
+    );
+  };
+
+  if (initialLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+        <Text style={styles.loadingText}>Verificando sesión...</Text>
+      </View>
+    );
+  }
 
   return (
     <ImageBackground
@@ -97,6 +177,7 @@ const LoginScreen = ({ navigation }) => {
               placeholderTextColor="#aaa"
               keyboardType="email-address"
               autoCapitalize="none"
+              autoComplete="email"
               value={email}
               onChangeText={setEmail}
               editable={!loading}
@@ -110,6 +191,7 @@ const LoginScreen = ({ navigation }) => {
               placeholder="Ingresa tu contraseña"
               placeholderTextColor="#aaa"
               secureTextEntry
+              autoComplete="password"
               value={password}
               onChangeText={setPassword}
               editable={!loading}
@@ -121,13 +203,27 @@ const LoginScreen = ({ navigation }) => {
             onPress={handleLogin}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? 'INICIANDO SESIÓN...' : 'LOGIN'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.buttonText}>LOGIN</Text>
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate("Register")}>
-            <Text style={styles.link}>¿No tienes cuenta? Regístrate</Text>
+          <TouchableOpacity 
+            onPress={handleForgotPassword}
+            style={styles.forgotPassword}
+          >
+            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => navigation.navigate("Register")}
+            disabled={loading}
+          >
+            <Text style={[styles.link, loading && styles.disabledText]}>
+              ¿No tienes cuenta? Regístrate
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -138,6 +234,17 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#8B5CF6',
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '500',
   },
   inner: {
     flex: 1,
@@ -204,11 +311,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  forgotPassword: {
+    marginBottom: 10,
+  },
+  forgotPasswordText: {
+    color: "#8B5CF6",
+    fontSize: 12,
+    fontWeight: "400",
+  },
   link: {
     color: "#8B5CF6",
     marginTop: 10,
     fontSize: 14,
     fontWeight: "500",
+  },
+  disabledText: {
+    opacity: 0.5,
   },
 });
 
