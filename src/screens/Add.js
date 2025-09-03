@@ -1,118 +1,345 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, Alert } from 'react-native';
-import { database } from '../config/firebase';
-//import { database, storage } from '../config/firebase';
-//import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView, Modal, FlatList } from 'react-native';
+import { db } from '../config/firebase';
 import { collection, addDoc } from 'firebase/firestore';
-import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
-// Componente Add para agregar un nuevo producto
+// Componente Add para agregar un nuevo usuario
 const Add = ({ navigation }) => {
-    // Estado inicial del producto
-    const [producto, setProducto] = useState({
+    // Estado inicial del usuario
+    const [usuario, setUsuario] = useState({
         nombre: '',
-        precio: 0,
-        vendido: false,
-        creado: new Date(),
-        imagen: ''
+        correo: '',
+        contraseña: '',
+        edad: '',
+        especialidad: ''
     });
+
+    const [loading, setLoading] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+
+    const specialties = [
+        { label: 'Selecciona una especialidad', value: '' },
+        { label: 'Software', value: 'Software' },
+        { label: 'Diseño', value: 'Diseño' },
+        { label: 'Emca', value: 'Emca' },
+        { label: 'Arquitectura', value: 'Arquitectura' },
+        { label: 'Contaduría', value: 'Contaduría' }
+    ];
 
     // Función para navegar a la pantalla de inicio
     const goToHome = () => {
-    navigation.goBack();
+        navigation.goBack();
     };
 
-    // Función para abrir la galería de imágenes del dispositivo
-    const openGalery = async () => {
+    // Función para manejar cambios en los campos
+    const handleInputChange = (field, value) => {
+        setUsuario(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    // Función para seleccionar especialidad
+    const selectSpecialty = (value) => {
+        setUsuario(prev => ({
+            ...prev,
+            especialidad: value
+        }));
+        setModalVisible(false);
+    };
+
+    // Función para obtener iconos según la especialidad
+    const getSpecialtyIcon = (specialty) => {
+        const icons = {
+            'Software': 'computer',
+            'Diseño': 'palette',
+            'Emca': 'business',
+            'Arquitectura': 'home',
+            'Contaduría': 'account-balance',
+            '': 'work'
+        };
+        return icons[specialty] || 'work';
+    };
+
+    // Función para validar el formulario
+    const validateForm = () => {
+        const { nombre, correo, contraseña, edad, especialidad } = usuario;
+
+        if (!nombre.trim() || !correo.trim() || !contraseña.trim() || !edad.trim() || !especialidad.trim()) {
+            Alert.alert('Error', 'Todos los campos son obligatorios');
+            return false;
+        }
+
+        if (!correo.includes('@')) {
+            Alert.alert('Error', 'Por favor ingresa un correo válido');
+            return false;
+        }
+
+        if (contraseña.length < 6) {
+            Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+            return false;
+        }
+
+        if (isNaN(edad) || parseInt(edad) < 18) {
+            Alert.alert('Error', 'La edad debe ser un número mayor a 18');
+            return false;
+        }
+
+        if (!especialidad) {
+            Alert.alert('Error', 'Por favor selecciona una especialidad');
+            return false;
+        }
+
+        return true;
+    };
+
+    // Función para agregar el usuario a Firestore
+    const agregarUsuario = async () => {
+        if (!validateForm()) return;
+
+        setLoading(true);
         try {
-            let result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All,
-                allowsEditing: true,
-                aspect: [8, 8],
-                quality: 1,
+            await addDoc(collection(db, 'usuarios'), {
+                nombre: usuario.nombre.trim(),
+                correo: usuario.correo.trim().toLowerCase(),
+                contraseña: usuario.contraseña,
+                edad: parseInt(usuario.edad),
+                especialidad: usuario.especialidad
             });
 
-            if (!result.canceled && result.assets.length > 0) {
-                setProducto({
-                    ...producto,
-                    imagen: result.assets[0].uri
-                });
-                console.log('Imagen seleccionada:', result.assets[0].uri);
-            }
-        } catch (error) {
-            console.log('Error al abrir la galería', error);
-        }
-    };
-
-    // Función para agregar el producto a Firestore
-    const agregarProducto = async () => {
-        try {
-            let imageUrl = "Storage ya no es gratuito";
-
-          /*  if (producto.imagen) {
-                console.log('Subiendo imagen a Firebase Storage...');
-                const imageRef = ref(storage, `images/${Date.now()}-${producto.nombre}`);
-
-                const response = await fetch(producto.imagen);
-                const blob = await response.blob();
-
-                console.log('Antes del uploadBytes');
-                const snapshot = await uploadBytes(imageRef, blob);
-                console.log('Snapshot después del uploadBytes:', snapshot);
-
-                imageUrl = await getDownloadURL(snapshot.ref);
-                console.log("URL de la imagen:", imageUrl);
-            }
-*/
-            //console.log('Datos del producto:', {...producto, imagen: imageUrl});
-            //console.log('Datos del producto:', {...producto});
-            await addDoc(collection(database, 'productos'), {...producto, imagen: imageUrl});
-            console.log('Se guardó la colección');
-
-            Alert.alert('Producto agregado', 'El producto se agregó correctamente', [
-                { text: 'Ok', onPress: goToHome },
+            Alert.alert('Éxito', 'Usuario registrado correctamente', [
+                { 
+                    text: 'Ok', 
+                    onPress: () => {
+                        // Limpiar formulario
+                        setUsuario({
+                            nombre: '',
+                            correo: '',
+                            contraseña: '',
+                            edad: '',
+                            especialidad: ''
+                        });
+                        goToHome();
+                    }
+                },
             ]);
 
         } catch (error) {
-            console.error('Error al agregar el producto', error);
-            Alert.alert('Error', 'Ocurrió un error al agregar el producto. Por favor, intenta nuevamente.');
+            console.error('Error al registrar el usuario', error);
+            Alert.alert('Error', 'Ocurrió un error al registrar el usuario. Por favor, intenta nuevamente.');
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Agregar producto</Text>
-            <View style={styles.inputContainer}>
-                <Text style={styles.label}>Nombre:</Text>
-                <TextInput
-                    style={styles.input}
-                    onChangeText={text => setProducto({ ...producto, nombre: text })}
-                    value={producto.nombre}
-                />
-            </View>
-            <View style={styles.inputContainer}>
-                <Text style={styles.label}>Precio:</Text>
-                <TextInput
-                    style={styles.input}
-                    onChangeText={text => setProducto({ ...producto, precio: parseFloat(text) })}
-                    value={producto.precio}
-                    keyboardType='numeric'
-                />
-            </View>
-            <Text>Imagen:</Text>
-            <TouchableOpacity onPress={openGalery} style={styles.imagePicker}>
-                <Text style={styles.imagePickerText}>Seleccionar Imagen</Text>
-            </TouchableOpacity>
-            {producto.imagen ? <Image source={{ uri: producto.imagen }} style={styles.imagePreview} /> : null}
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.container}>
+                {/* Header */}
+                <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    style={styles.headerCard}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                >
+                    <View style={styles.headerContent}>
+                        <Icon name="person-add" size={32} color="#fff" />
+                        <Text style={styles.headerTitle}>Registrar Usuario</Text>
+                    </View>
+                </LinearGradient>
 
-            <TouchableOpacity style={styles.button} onPress={agregarProducto}>
-                <Text style={styles.buttonText}>Agregar producto</Text>
-            </TouchableOpacity>
+                {/* Formulario */}
+                <View style={styles.formCard}>
+                    {/* Campo Nombre */}
+                    <View style={styles.inputSection}>
+                        <Text style={styles.label}>
+                            <Icon name="person" size={16} color="#667eea" /> Nombre Completo
+                        </Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="person" size={20} color="#667eea" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Ingresa tu nombre completo"
+                                placeholderTextColor="#999"
+                                value={usuario.nombre}
+                                onChangeText={(value) => handleInputChange('nombre', value)}
+                            />
+                        </View>
+                    </View>
 
-            <TouchableOpacity style={styles.button} onPress={goToHome}>
-                <Text style={styles.buttonText}>Volver a home</Text>
-            </TouchableOpacity>
-        </View>
+                    {/* Campo Correo */}
+                    <View style={styles.inputSection}>
+                        <Text style={styles.label}>
+                            <Icon name="email" size={16} color="#667eea" /> Correo Electrónico
+                        </Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="email" size={20} color="#667eea" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="ejemplo@correo.com"
+                                placeholderTextColor="#999"
+                                value={usuario.correo}
+                                onChangeText={(value) => handleInputChange('correo', value)}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                        </View>
+                    </View>
+
+                    {/* Campo Contraseña */}
+                    <View style={styles.inputSection}>
+                        <Text style={styles.label}>
+                            <Icon name="lock" size={16} color="#667eea" /> Contraseña
+                        </Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="lock" size={20} color="#667eea" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Mínimo 6 caracteres"
+                                placeholderTextColor="#999"
+                                value={usuario.contraseña}
+                                onChangeText={(value) => handleInputChange('contraseña', value)}
+                                secureTextEntry
+                            />
+                        </View>
+                    </View>
+
+                    {/* Campo Edad */}
+                    <View style={styles.inputSection}>
+                        <Text style={styles.label}>
+                            <Icon name="cake" size={16} color="#667eea" /> Edad
+                        </Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="cake" size={20} color="#667eea" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Ingresa tu edad"
+                                placeholderTextColor="#999"
+                                value={usuario.edad}
+                                onChangeText={(value) => handleInputChange('edad', value)}
+                                keyboardType="numeric"
+                            />
+                        </View>
+                    </View>
+
+                    {/* Campo Especialidad */}
+                    <View style={styles.inputSection}>
+                        <Text style={styles.label}>
+                            <Icon name="work" size={16} color="#667eea" /> Especialidad
+                        </Text>
+                        <TouchableOpacity 
+                            style={styles.inputContainer}
+                            onPress={() => setModalVisible(true)}
+                        >
+                            <Icon name="work" size={20} color="#667eea" style={styles.inputIcon} />
+                            <Text style={[
+                                styles.specialtyText, 
+                                !usuario.especialidad && styles.placeholder
+                            ]}>
+                                {usuario.especialidad || 'Selecciona una especialidad'}
+                            </Text>
+                            <Icon name="arrow-drop-down" size={24} color="#667eea" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Botones de acción */}
+                    <View style={styles.buttonSection}>
+                        {/* Botón Registrar */}
+                        <TouchableOpacity 
+                            style={styles.primaryButton} 
+                            onPress={agregarUsuario}
+                            disabled={loading}
+                            activeOpacity={0.8}
+                        >
+                            <LinearGradient
+                                colors={loading ? ['#ccc', '#999'] : ['#4facfe', '#00f2fe']}
+                                style={styles.primaryButtonGradient}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                            >
+                                {loading ? (
+                                    <Icon name="hourglass-empty" size={20} color="#fff" />
+                                ) : (
+                                    <Icon name="check-circle" size={20} color="#fff" />
+                                )}
+                                <Text style={styles.primaryButtonText}>
+                                    {loading ? 'Registrando...' : 'Registrar Usuario'}
+                                </Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        {/* Botón Volver */}
+                        <TouchableOpacity 
+                            style={styles.secondaryButton}
+                            onPress={goToHome}
+                            activeOpacity={0.8}
+                            disabled={loading}
+                        >
+                            <View style={styles.secondaryButtonContent}>
+                                <Icon name="arrow-back" size={20} color="#667eea" />
+                                <Text style={styles.secondaryButtonText}>Volver a Home</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Modal para seleccionar especialidad */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={modalVisible}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Selecciona tu especialidad</Text>
+                                <TouchableOpacity 
+                                    onPress={() => setModalVisible(false)}
+                                    style={styles.closeButton}
+                                >
+                                    <Icon name="close" size={24} color="#666" />
+                                </TouchableOpacity>
+                            </View>
+                            
+                            <FlatList
+                                data={specialties}
+                                keyExtractor={(item) => item.value}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.specialtyOption,
+                                            usuario.especialidad === item.value && styles.selectedOption
+                                        ]}
+                                        onPress={() => selectSpecialty(item.value)}
+                                        disabled={!item.value} // Deshabilitar la opción placeholder
+                                    >
+                                        <Icon 
+                                            name={getSpecialtyIcon(item.value)} 
+                                            size={20} 
+                                            color={usuario.especialidad === item.value ? '#4facfe' : '#666'} 
+                                            style={styles.optionIcon}
+                                        />
+                                        <Text style={[
+                                            styles.specialtyOptionText,
+                                            usuario.especialidad === item.value && styles.selectedOptionText,
+                                            !item.value && styles.placeholderOption
+                                        ]}>
+                                            {item.label}
+                                        </Text>
+                                        {usuario.especialidad === item.value && (
+                                            <Icon name="check" size={20} color="#4facfe" />
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
+                    </View>
+                </Modal>
+            </View>
+        </ScrollView>
     );
 };
 
@@ -120,72 +347,206 @@ export default Add;
 
 // Estilos del componente
 const styles = StyleSheet.create({
+    scrollContainer: {
+        flex: 1,
+        backgroundColor: '#f5f7fa',
+    },
     container: {
         flex: 1,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
         padding: 20,
+        paddingBottom: 40,
     },
-    title: {
+    headerCard: {
+        borderRadius: 20,
+        padding: 25,
+        marginBottom: 25,
+        shadowColor: '#667eea',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 15,
+    },
+    headerContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 20,
-        textAlign: 'center',
+        color: '#fff',
+        marginLeft: 15,
     },
-    input: {
-        height: 40,
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 4,
-        paddingLeft: 8,
+    formCard: {
         backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 25,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.1,
-        shadowRadius: 5,
-        elevation: 2,
-        width: '100%'
+        shadowRadius: 15,
+        elevation: 10,
     },
-    imagePicker: {
-        backgroundColor: '#0288d1',
-        padding: 10,
-        borderRadius: 5,
-        alignItems: 'center',
-        marginBottom: 20,
-        width: '100%',
-    },
-    imagePickerText: {
-        color: 'white',
-        fontWeight: 'bold',
-    },
-    imagePreview: {
-        width: 100,
-        height: 100,
-        marginBottom: 20,
-    },
-    button: {
-        backgroundColor: '#0288d1',
-        padding: 10,
-        borderRadius: 5,
-        marginTop: 20,
-        width: '100%',
-        alignItems: 'center',
-    },
-    buttonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        textAlign: 'center',
+    inputSection: {
+        marginBottom: 25,
     },
     label: {
         fontSize: 16,
-        marginBottom: 8,
+        fontWeight: 'bold',
         color: '#333',
+        marginBottom: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     inputContainer: {
-        width: '100%',
-        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: '#f8f9fa',
-        marginBottom: 16,
+        borderRadius: 12,
+        paddingHorizontal: 15,
+        borderWidth: 1,
+        borderColor: '#e9ecef',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+        minHeight: 55,
+    },
+    inputIcon: {
+        marginRight: 10,
+    },
+    input: {
+        flex: 1,
+        paddingVertical: 15,
+        fontSize: 16,
+        color: '#333',
+    },
+    specialtyText: {
+        flex: 1,
+        paddingVertical: 15,
+        fontSize: 16,
+        color: '#333',
+    },
+    placeholder: {
+        color: '#999',
+    },
+    buttonSection: {
+        gap: 15,
+        marginTop: 10,
+    },
+    primaryButton: {
+        borderRadius: 15,
+        overflow: 'hidden',
+        shadowColor: '#4facfe',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 15,
+        elevation: 10,
+    },
+    primaryButtonGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 18,
+        paddingHorizontal: 30,
+    },
+    primaryButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginLeft: 10,
+    },
+    secondaryButton: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: 15,
+        borderWidth: 2,
+        borderColor: '#667eea',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    secondaryButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 15,
+        paddingHorizontal: 30,
+    },
+    secondaryButtonText: {
+        color: '#667eea',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 10,
+    },
+    // Estilos del Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        margin: 20,
+        maxHeight: '70%',
+        width: '90%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 25,
+        elevation: 25,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+        flex: 1,
+    },
+    closeButton: {
+        padding: 5,
+    },
+    specialtyOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 15,
+        paddingHorizontal: 15,
+        marginVertical: 5,
+        borderRadius: 12,
+        backgroundColor: '#f8f9fa',
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    selectedOption: {
+        backgroundColor: '#e3f2fd',
+        borderColor: '#4facfe',
+    },
+    optionIcon: {
+        marginRight: 15,
+    },
+    specialtyOptionText: {
+        fontSize: 16,
+        color: '#333',
+        flex: 1,
+    },
+    selectedOptionText: {
+        fontWeight: 'bold',
+        color: '#4facfe',
+    },
+    placeholderOption: {
+        color: '#999',
+        fontStyle: 'italic',
     },
 });
