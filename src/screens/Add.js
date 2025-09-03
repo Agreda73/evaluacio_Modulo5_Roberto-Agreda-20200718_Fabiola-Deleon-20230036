@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView, Modal, FlatList } from 'react-native';
 import { db } from '../config/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
@@ -95,18 +95,23 @@ const Add = ({ navigation }) => {
         return true;
     };
 
-    // Función para agregar el usuario a Firestore
+    // Función para agregar el usuario a Firestore - CORREGIDA
     const agregarUsuario = async () => {
         if (!validateForm()) return;
 
         setLoading(true);
         try {
-            await addDoc(collection(db, 'usuarios'), {
-                nombre: usuario.nombre.trim(),
-                correo: usuario.correo.trim().toLowerCase(),
-                contraseña: usuario.contraseña,
-                edad: parseInt(usuario.edad),
-                especialidad: usuario.especialidad
+            // Cambiar 'usuarios' por 'users' para coincidir con Register.js
+            await addDoc(collection(db, 'users'), {
+                name: usuario.nombre.trim(), // Cambiar 'nombre' por 'name' para consistencia
+                email: usuario.correo.trim().toLowerCase(), // Cambiar 'correo' por 'email'
+                password: usuario.contraseña, // Mantener para compatibilidad (aunque no es recomendable guardar passwords)
+                age: parseInt(usuario.edad), // Cambiar 'edad' por 'age'
+                specialty: usuario.especialidad, // Cambiar 'especialidad' por 'specialty'
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                profileComplete: true,
+                emailVerified: false
             });
 
             Alert.alert('Éxito', 'Usuario registrado correctamente', [
@@ -548,5 +553,5 @@ const styles = StyleSheet.create({
     placeholderOption: {
         color: '#999',
         fontStyle: 'italic',
-    },
+    }
 });

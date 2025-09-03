@@ -17,7 +17,8 @@ const Home = ({ navigation }) => {
     const testFirebaseConnection = async () => {
         try {
             console.log('🔍 Testing Firebase connection...');
-            const usuariosRef = collection(db, 'usuarios');
+            // CAMBIO: Usar 'users' en lugar de 'usuarios'
+            const usuariosRef = collection(db, 'users');
             const snapshot = await getDocs(usuariosRef);
             
             console.log('📊 Collection size:', snapshot.size);
@@ -60,19 +61,31 @@ const Home = ({ navigation }) => {
                 console.log(`🧮 Direct fetch found ${count} users`);
 
                 // Ahora configuramos el listener en tiempo real
-                console.log('🔄 Setting up real-time listener...');
+                console.log('📄 Setting up real-time listener...');
                 
                 const unsubscribe = onSnapshot(
-                    collection(db, 'usuarios'), 
+                    // CAMBIO: Usar 'users' en lugar de 'usuarios'
+                    collection(db, 'users'), 
                     (querySnapshot) => {
-                        console.log('🔄 Snapshot received');
+                        console.log('📄 Snapshot received');
                         console.log('📊 Snapshot size:', querySnapshot.size);
                         console.log('📊 Snapshot empty:', querySnapshot.empty);
                         
                         const docs = [];
                         querySnapshot.forEach((doc) => {
                             console.log('📄 Processing doc:', doc.id, doc.data());
-                            docs.push({ id: doc.id, ...doc.data() });
+                            const data = doc.data();
+                            // Adaptación de datos para compatibilidad con CardUsuarios
+                            docs.push({ 
+                                id: doc.id, 
+                                // Mapear los campos del nuevo formato al formato esperado por CardUsuarios
+                                nombre: data.name || data.nombre,
+                                correo: data.email || data.correo,
+                                edad: data.age || data.edad,
+                                especialidad: data.specialty || data.especialidad,
+                                contraseña: data.password || data.contraseña,
+                                ...data
+                            });
                         });
                         
                         // Actualiza el estado de usuarios con los datos recibidos
