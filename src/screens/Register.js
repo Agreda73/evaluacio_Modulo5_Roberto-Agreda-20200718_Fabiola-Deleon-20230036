@@ -14,8 +14,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { StatusBar } from 'expo-status-bar';
 
@@ -95,26 +95,16 @@ const RegisterScreen = ({ navigation }) => {
   const handleRegister = async () => {
     if (!validateForm()) return;
 
-    // Pre-flight checks
-    console.log('🚀 Starting registration...');
-    console.log('Auth object:', !!auth);
-    console.log('DB object:', !!db);
+    console.log('Starting registration...');
     
-    if (!auth) {
-      Alert.alert('Error de Configuración', 'Firebase Authentication no está configurado correctamente');
-      return;
-    }
-
-    if (!db) {
-      Alert.alert('Error de Configuración', 'Firestore Database no está configurado correctamente');
+    if (!auth || !db) {
+      Alert.alert('Error de Configuración', 'Firebase no está configurado correctamente');
       return;
     }
 
     setLoading(true);
     
     try {
-      console.log('📧 Creating user with email:', formData.email);
-      
       // Create user with email and password
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
@@ -123,41 +113,28 @@ const RegisterScreen = ({ navigation }) => {
       );
       
       const user = userCredential.user;
-      console.log('✅ User created successfully:', user.uid);
+      console.log('User created successfully:', user.uid);
 
       // Update user profile with name
       await updateProfile(user, {
         displayName: formData.name.trim()
       });
-      console.log('✅ Profile updated');
 
-      // Save additional user data to Firestore
+      // Save simplified user data to Firestore
       const userData = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         age: parseInt(formData.age),
         specialty: formData.specialty,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        uid: user.uid,
-        emailVerified: false,
-        profileComplete: true
+        uid: user.uid
       };
 
       await setDoc(doc(db, 'users', user.uid), userData);
-      console.log('✅ User data saved to Firestore');
-
-      // Send email verification (optional)
-      try {
-        await sendEmailVerification(user);
-        console.log('✅ Verification email sent');
-      } catch (verificationError) {
-        console.log('⚠️ Error sending verification email:', verificationError);
-      }
+      console.log('User data saved to Firestore');
 
       Alert.alert(
-        '¡Éxito!', 
-        'Cuenta creada exitosamente. ¡Ya puedes iniciar sesión!',
+        'Éxito!', 
+        'Cuenta creada exitosamente. Ya puedes iniciar sesión!',
         [
           {
             text: 'Ir a Login',
@@ -177,33 +154,13 @@ const RegisterScreen = ({ navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('❌ Registration error:', error);
-      console.error('❌ Error code:', error.code);
-      console.error('❌ Error message:', error.message);
+      console.error('Registration error:', error);
       
       let errorMessage = 'Error al crear la cuenta';
-      let troubleshootingTip = '';
       
       switch (error.code) {
-        case 'auth/configuration-not-found':
-          errorMessage = 'Configuración de Firebase incompleta';
-          troubleshootingTip = 'Verifica que Authentication esté habilitado en Firebase Console:\n\n1. Ve a Firebase Console\n2. Selecciona tu proyecto\n3. Ve a Authentication > Sign-in method\n4. Habilita Email/Password';
-          break;
-        case 'auth/project-not-found':
-          errorMessage = 'Proyecto de Firebase no encontrado';
-          troubleshootingTip = 'Verifica que el Project ID sea correcto en la configuración';
-          break;
-        case 'auth/api-key-not-valid':
-          errorMessage = 'API Key de Firebase inválida';
-          troubleshootingTip = 'Verifica la API Key en Firebase Console > Project Settings';
-          break;
-        case 'auth/operation-not-allowed':
-          errorMessage = 'Authentication con Email/Password no está habilitado';
-          troubleshootingTip = 'Ve a Firebase Console > Authentication > Sign-in method y habilita Email/Password';
-          break;
         case 'auth/email-already-in-use':
           errorMessage = 'Este email ya está registrado';
-          troubleshootingTip = '¿Ya tienes una cuenta? Intenta iniciar sesión';
           break;
         case 'auth/invalid-email':
           errorMessage = 'El formato del email no es válido';
@@ -211,19 +168,17 @@ const RegisterScreen = ({ navigation }) => {
         case 'auth/weak-password':
           errorMessage = 'La contraseña es muy débil. Usa al menos 6 caracteres';
           break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'Authentication con Email/Password no está habilitado';
+          break;
         case 'auth/network-request-failed':
           errorMessage = 'Error de conexión. Verifica tu internet';
           break;
         default:
           errorMessage = `Error: ${error.message}`;
-          troubleshootingTip = 'Si el problema persiste, verifica la configuración de Firebase';
       }
       
-      Alert.alert(
-        'Error de Registro', 
-        troubleshootingTip ? `${errorMessage}\n\n${troubleshootingTip}` : errorMessage,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error de Registro', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -253,7 +208,6 @@ const RegisterScreen = ({ navigation }) => {
             <Text style={styles.subtitle}>FOR YOUR ACCOUNT</Text>
 
             <View style={styles.inputContainer}>
-              
               <TextInput
                 style={styles.input}
                 placeholder="Nombre completo"
@@ -267,7 +221,6 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-            
               <TextInput
                 style={styles.input}
                 placeholder="Correo electrónico"
@@ -282,7 +235,6 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-            
               <TextInput
                 style={styles.input}
                 placeholder="Contraseña (mín. 6 caracteres)"
@@ -296,7 +248,6 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-             
               <TextInput
                 style={styles.input}
                 placeholder="Confirmar contraseña"
@@ -309,21 +260,19 @@ const RegisterScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-            
               <TextInput
                 style={styles.input}
-                placeholder="Edad (18-120)"
+                placeholder="Edad (18-80)"
                 placeholderTextColor="#999"
                 value={formData.age}
                 onChangeText={(value) => updateFormData('age', value)}
                 keyboardType="numeric"
-                maxLength={3}
+                maxLength={2}
                 editable={!loading}
               />
             </View>
 
             <View style={styles.pickerContainer}>
-              
               <View style={styles.pickerWrapper}>
                 <Picker
                   selectedValue={formData.specialty}

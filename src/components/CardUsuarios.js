@@ -20,7 +20,8 @@ const handleDelete = async (id, nombre) => {
                 style: 'destructive',
                 onPress: async () => {
                     try {
-                        await deleteDoc(doc(db, 'usuarios', id));
+                        // CAMBIO: Usar 'users' en lugar de 'usuarios'
+                        await deleteDoc(doc(db, 'users', id));
                         Alert.alert('Éxito', 'Usuario eliminado correctamente');
                     } catch (e) {
                         console.error('Error removing document: ', e);
@@ -36,11 +37,12 @@ const handleDelete = async (id, nombre) => {
 const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [editData, setEditData] = useState({
-        nombre: nombre || '',
-        correo: correo || '',
-        edad: edad ? edad.toString() : '',
-        especialidad: especialidad || '',
-        contraseña: contraseña || ''
+        // CAMBIO: Mapear a los nombres de campos que usa authService
+        name: nombre || '',
+        email: correo || '',
+        age: edad ? edad.toString() : '',
+        specialty: especialidad || '',
+        password: contraseña || ''
     });
     const [specialtyModalVisible, setSpecialtyModalVisible] = useState(false);
 
@@ -80,32 +82,35 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
     const handleUpdate = async () => {
         try {
             // Validaciones básicas
-            if (!editData.nombre.trim() || !editData.correo.trim() || !editData.edad.trim() || !editData.especialidad.trim()) {
+            if (!editData.name.trim() || !editData.email.trim() || !editData.age.trim() || !editData.specialty.trim()) {
                 Alert.alert('Error', 'Todos los campos son obligatorios');
                 return;
             }
 
-            if (!editData.correo.includes('@')) {
+            if (!editData.email.includes('@')) {
                 Alert.alert('Error', 'Por favor ingresa un correo válido');
                 return;
             }
 
-            if (isNaN(editData.edad) || parseInt(editData.edad) < 18) {
+            if (isNaN(editData.age) || parseInt(editData.age) < 18) {
                 Alert.alert('Error', 'La edad debe ser un número mayor a 18');
                 return;
             }
 
-            if (editData.contraseña.length < 6) {
+            if (editData.password.length < 6) {
                 Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
                 return;
             }
 
-            await updateDoc(doc(db, 'usuarios', id), {
-                nombre: editData.nombre.trim(),
-                correo: editData.correo.trim(),
-                edad: parseInt(editData.edad),
-                especialidad: editData.especialidad,
-                contraseña: editData.contraseña
+            // CAMBIO: Usar 'users' y los nombres de campos correctos
+            await updateDoc(doc(db, 'users', id), {
+                name: editData.name.trim(),
+                email: editData.email.trim(),
+                age: parseInt(editData.age),
+                specialty: editData.specialty,
+                password: editData.password,
+                // Mantener campos adicionales que puede tener authService
+                updatedAt: new Date()
             });
 
             setModalVisible(false);
@@ -120,7 +125,7 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
     const selectSpecialty = (value) => {
         setEditData(prev => ({
             ...prev,
-            especialidad: value
+            specialty: value
         }));
         setSpecialtyModalVisible(false);
     };
@@ -217,8 +222,8 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Nombre completo"
-                                    value={editData.nombre}
-                                    onChangeText={(text) => setEditData({...editData, nombre: text})}
+                                    value={editData.name}
+                                    onChangeText={(text) => setEditData({...editData, name: text})}
                                 />
                             </View>
 
@@ -228,8 +233,8 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Correo electrónico"
-                                    value={editData.correo}
-                                    onChangeText={(text) => setEditData({...editData, correo: text})}
+                                    value={editData.email}
+                                    onChangeText={(text) => setEditData({...editData, email: text})}
                                     keyboardType="email-address"
                                 />
                             </View>
@@ -240,8 +245,8 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Contraseña"
-                                    value={editData.contraseña}
-                                    onChangeText={(text) => setEditData({...editData, contraseña: text})}
+                                    value={editData.password}
+                                    onChangeText={(text) => setEditData({...editData, password: text})}
                                     secureTextEntry
                                 />
                             </View>
@@ -252,8 +257,8 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Edad"
-                                    value={editData.edad}
-                                    onChangeText={(text) => setEditData({...editData, edad: text})}
+                                    value={editData.age}
+                                    onChangeText={(text) => setEditData({...editData, age: text})}
                                     keyboardType="numeric"
                                 />
                             </View>
@@ -264,7 +269,7 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
                                 onPress={() => setSpecialtyModalVisible(true)}
                             >
                                 <Icon name="work" size={20} color="#667eea" style={styles.inputIcon} />
-                                <Text style={styles.specialtyText}>{editData.especialidad}</Text>
+                                <Text style={styles.specialtyText}>{editData.specialty}</Text>
                                 <Icon name="arrow-drop-down" size={24} color="#667eea" />
                             </TouchableOpacity>
 
@@ -315,23 +320,23 @@ const CardUsuarios = ({ id, nombre, correo, edad, especialidad, contraseña }) =
                                 <TouchableOpacity
                                     style={[
                                         styles.specialtyOption,
-                                        editData.especialidad === item.value && styles.selectedOption
+                                        editData.specialty === item.value && styles.selectedOption
                                     ]}
                                     onPress={() => selectSpecialty(item.value)}
                                 >
                                     <Icon 
                                         name={getSpecialtyIcon(item.value)} 
                                         size={20} 
-                                        color={editData.especialidad === item.value ? '#4facfe' : '#666'} 
+                                        color={editData.specialty === item.value ? '#4facfe' : '#666'} 
                                         style={styles.optionIcon}
                                     />
                                     <Text style={[
                                         styles.specialtyOptionText,
-                                        editData.especialidad === item.value && styles.selectedOptionText
+                                        editData.specialty === item.value && styles.selectedOptionText
                                     ]}>
                                         {item.label}
                                     </Text>
-                                    {editData.especialidad === item.value && (
+                                    {editData.specialty === item.value && (
                                         <Icon name="check" size={20} color="#4facfe" />
                                     )}
                                 </TouchableOpacity>
@@ -556,4 +561,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default CardUsuarios;
+export default CardUsuarios
