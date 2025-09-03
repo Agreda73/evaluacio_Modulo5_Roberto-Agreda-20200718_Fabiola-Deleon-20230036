@@ -9,6 +9,7 @@ Aplicación desarrollada como parte de la evaluación del Módulo 5, por **Rober
 - **@react-native-picker/picker** → para el combo box en el formulario de edición.  
 
 ## 📂 Estructura del proyecto
+```bash
 .
 ├── components/
 │   └── CardProductos.js    # Componente de tarjeta (mostrar, editar, eliminar)
@@ -18,6 +19,7 @@ Aplicación desarrollada como parte de la evaluación del Módulo 5, por **Rober
 │   └── firebase.js         # Configuración de Firebase
 ├── App.js                  # Punto de entrada de la app
 └── README.md               # Documentación del proyecto
+````
 
 
 ## 🚀 Instalación
