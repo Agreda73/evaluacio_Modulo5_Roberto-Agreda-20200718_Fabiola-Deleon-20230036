@@ -2,17 +2,24 @@
 
 Aplicación desarrollada como parte de la evaluación del Módulo 5, por **Roberto Agreda** y **Fabiola Deleón**. Esta app móvil está construida con **React Native** y utiliza **Firebase** para la gestión de datos y autenticación.
 
-## 📱 Tecnologías utilizadas
+## 🛠️ Tecnologías utilizadas
 
-- React Native
-- Expo
-- Firebase (Firestore y Auth)
-- React Navigation (Native Stack)
-- dotenv para variables de entorno
-- Expo Image Picker
+- **React Native (Expo o CLI)** → para la interfaz móvil.  
+- **Firebase Firestore** → base de datos en la nube.  
+- **@react-native-picker/picker** → para el combo box en el formulario de edición.  
 
-## 📁 Estructura del proyecto
-├── assets/               # Recursos gráficos y multimedia ├── src/                 # Lógica principal de la app │   ├── components/      # Componentes reutilizables │   ├── screens/         # Pantallas de navegación │   └── firebase/        # Configuración de Firebase ├── App.js               # Punto de entrada de la app ├── .env                 # Variables de entorno ├── app.json             # Configuración de Expo ├── package.json         # Dependencias del proyecto
+## 📂 Estructura del proyecto
+
+```bash
+.
+├── components/
+│   └── CardProductos.js    # Componente de tarjeta (mostrar, editar, eliminar)
+├── screens/
+│   └── ProductosScreen.js  # Pantalla principal que lista los productos
+├── config/
+│   └── firebase.js         # Configuración de Firebase
+├── App.js                  # Punto de entrada de la app
+└── README.md               # Documentación del proyecto
 
 ## 🚀 Instalación
 
@@ -42,7 +49,9 @@ npx expo start
 - Manejo seguro de variables de entorno
 
 ## 👥 Autores
-- Roberto Agreda
-- Fabiola Deleón
+- Roberto Agreda 20200718
+- Fabiola Deleón 20230033
+
+##  🎥 link del video 
 
 
