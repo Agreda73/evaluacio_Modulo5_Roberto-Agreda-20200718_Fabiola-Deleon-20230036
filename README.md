@@ -12,9 +12,9 @@ Aplicación desarrollada como parte de la evaluación del Módulo 5, por **Rober
 ```bash
 .
 ├── components/
-│   └── CardProductos.js    # Componente de tarjeta (mostrar, editar, eliminar)
+│   └── Carduser.js    # Componente de tarjeta (mostrar, editar, eliminar)
 ├── screens/
-│   └── ProductosScreen.js  # Pantalla principal que lista los productos
+│   └──home
 ├── config/
 │   └── firebase.js         # Configuración de Firebase
 ├── App.js                  # Punto de entrada de la app
